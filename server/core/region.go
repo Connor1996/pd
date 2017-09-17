@@ -14,6 +14,7 @@
 package core
 
 import (
+	"math/rand"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -170,3 +171,222 @@ type HotRegionsStat struct {
 	RegionsCount   int         `json:"regions_count"`
 	RegionsStat    RegionsStat `json:"statistics"`
 }
+
+// regionMap wraps a map[uint64]*core.RegionInfo and supports randomly pick a region.
+type regionMap struct {
+	m   map[uint64]*regionEntry
+	ids []uint64
+}
+
+type regionEntry struct {
+	*RegionInfo
+	pos int
+}
+
+func newRegionMap() *regionMap {
+	return &regionMap{
+		m: make(map[uint64]*regionEntry),
+	}
+}
+
+func (rm *regionMap) Len() int {
+	if rm == nil {
+		return 0
+	}
+	return len(rm.m)
+}
+
+func (rm *regionMap) Get(id uint64) *RegionInfo {
+	if rm == nil {
+		return nil
+	}
+	if entry, ok := rm.m[id]; ok {
+		return entry.RegionInfo
+	}
+	return nil
+}
+
+func (rm *regionMap) Put(region *RegionInfo) {
+	if old, ok := rm.m[region.GetId()]; ok {
+		old.RegionInfo = region
+		return
+	}
+	rm.m[region.GetId()] = &regionEntry{
+		RegionInfo: region,
+		pos:        len(rm.ids),
+	}
+	rm.ids = append(rm.ids, region.GetId())
+}
+
+func (rm *regionMap) RandomRegion() *RegionInfo {
+	if rm.Len() == 0 {
+		return nil
+	}
+	return rm.Get(rm.ids[rand.Intn(rm.Len())])
+}
+
+func (rm *regionMap) Delete(id uint64) {
+	if rm == nil {
+		return
+	}
+	if old, ok := rm.m[id]; ok {
+		len := rm.Len()
+		last := rm.m[rm.ids[len-1]]
+		last.pos = old.pos
+		rm.ids[last.pos] = last.GetId()
+		delete(rm.m, id)
+		rm.ids = rm.ids[:len-1]
+	}
+}
+
+// RegionsInfo for export
+type RegionsInfo struct {
+	tree      *regionTree
+	regions   *regionMap            // regionID -> regionInfo
+	leaders   map[uint64]*regionMap // storeID -> regionID -> regionInfo
+	followers map[uint64]*regionMap // storeID -> regionID -> regionInfo
+}
+
+func NewRegionsInfo() *RegionsInfo {
+	return &RegionsInfo{
+		tree:      newRegionTree(),
+		regions:   newRegionMap(),
+		leaders:   make(map[uint64]*regionMap),
+		followers: make(map[uint64]*regionMap),
+	}
+}
+
+func (r *RegionsInfo) GetRegion(regionID uint64) *RegionInfo {
+	region := r.regions.Get(regionID)
+	if region == nil {
+		return nil
+	}
+	return region.Clone()
+}
+
+func (r *RegionsInfo) SetRegion(region *RegionInfo) {
+	if origin := r.regions.Get(region.GetId()); origin != nil {
+		r.RemoveRegion(origin)
+	}
+	r.AddRegion(region)
+}
+
+func (r *RegionsInfo) Length() int {
+    return r.regions.Len()
+}
+
+func (r *RegionsInfo) AddRegion(region *RegionInfo) {
+	// Add to tree and regions.
+	r.tree.update(region.Region)
+	r.regions.Put(region)
+
+	if region.Leader == nil {
+		return
+	}
+
+	// Add to leaders and followers.
+	for _, peer := range region.GetPeers() {
+		storeID := peer.GetStoreId()
+		if peer.GetId() == region.Leader.GetId() {
+			// Add leader peer to leaders.
+			store, ok := r.leaders[storeID]
+			if !ok {
+				store = newRegionMap()
+				r.leaders[storeID] = store
+			}
+			store.Put(region)
+		} else {
+			// Add follower peer to followers.
+			store, ok := r.followers[storeID]
+			if !ok {
+				store = newRegionMap()
+				r.followers[storeID] = store
+			}
+			store.Put(region)
+		}
+	}
+}
+
+func (r *RegionsInfo) RemoveRegion(region *RegionInfo) {
+	// Remove from tree and regions.
+	r.tree.remove(region.Region)
+	r.regions.Delete(region.GetId())
+
+	// Remove from leaders and followers.
+	for _, peer := range region.GetPeers() {
+		storeID := peer.GetStoreId()
+		r.leaders[storeID].Delete(region.GetId())
+		r.followers[storeID].Delete(region.GetId())
+	}
+}
+
+func (r *RegionsInfo) SearchRegion(regionKey []byte) *RegionInfo {
+	region := r.tree.search(regionKey)
+	if region == nil {
+		return nil
+	}
+	return r.GetRegion(region.GetId())
+}
+
+func (r *RegionsInfo) GetRegions() []*RegionInfo {
+	regions := make([]*RegionInfo, 0, r.regions.Len())
+	for _, region := range r.regions.m {
+		regions = append(regions, region.Clone())
+	}
+	return regions
+}
+
+func (r *RegionsInfo) GetMetaRegions() []*metapb.Region {
+	regions := make([]*metapb.Region, 0, r.regions.Len())
+	for _, region := range r.regions.m {
+		regions = append(regions, proto.Clone(region.Region).(*metapb.Region))
+	}
+	return regions
+}
+
+func (r *RegionsInfo) GetRegionCount() int {
+	return r.regions.Len()
+}
+
+func (r *RegionsInfo) GetStoreRegionCount(storeID uint64) int {
+	return r.GetStoreLeaderCount(storeID) + r.GetStoreFollowerCount(storeID)
+}
+
+func (r *RegionsInfo) GetStoreLeaderCount(storeID uint64) int {
+	return r.leaders[storeID].Len()
+}
+
+func (r *RegionsInfo) GetStoreFollowerCount(storeID uint64) int {
+	return r.followers[storeID].Len()
+}
+
+func (r *RegionsInfo) RandRegion() *RegionInfo {
+	return randRegion(r.regions)
+}
+
+func (r *RegionsInfo) RandLeaderRegion(storeID uint64) *RegionInfo {
+	return randRegion(r.leaders[storeID])
+}
+
+func (r *RegionsInfo) RandFollowerRegion(storeID uint64) *RegionInfo {
+	return randRegion(r.followers[storeID])
+}
+
+const randomRegionMaxRetry = 10
+
+func randRegion(regions *regionMap) *RegionInfo {
+	for i := 0; i < randomRegionMaxRetry; i++ {
+		region := regions.RandomRegion()
+		if region == nil {
+			return nil
+		}
+		if len(region.DownPeers) == 0 && len(region.PendingPeers) == 0 {
+			return region.Clone()
+		}
+	}
+	return nil
+}
+
+
+
+

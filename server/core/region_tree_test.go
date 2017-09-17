@@ -11,16 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package server
+package core
 
 import (
 	"math"
 
 	"github.com/gogo/protobuf/proto"
 	. "github.com/pingcap/check"
-	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/kvproto/pkg/pdpb"
-	"github.com/pingcap/pd/server/core"
+	"github.com/pingcap/kvproto/pkg/pdpb"
 )
 
 var _ = Suite(&testRegionSuite{})
@@ -43,7 +42,7 @@ func (s *testRegionSuite) TestRegionInfo(c *C) {
 	}
 	downPeer, pendingPeer := peers[0], peers[1]
 
-	info := core.NewRegionInfo(region, peers[0])
+	info := NewRegionInfo(region, peers[0])
 	info.DownPeers = []*pdpb.PeerStats{{Peer: downPeer}}
 	info.PendingPeers = []*metapb.Peer{pendingPeer}
 
@@ -69,16 +68,16 @@ func (s *testRegionSuite) TestRegionInfo(c *C) {
 		StoreId: n,
 	}
 	r.Peers = append(r.Peers, removePeer)
-	c.Assert(diffRegionPeersInfo(info, r), Matches, "Add peer.*")
-	c.Assert(diffRegionPeersInfo(r, info), Matches, "Remove peer.*")
+	c.Assert(DiffRegionPeersInfo(info, r), Matches, "Add peer.*")
+	c.Assert(DiffRegionPeersInfo(r, info), Matches, "Remove peer.*")
 	c.Assert(r.GetStorePeer(n), DeepEquals, removePeer)
 	r.RemoveStorePeer(n)
-	c.Assert(diffRegionPeersInfo(r, info), Equals, "")
+	c.Assert(DiffRegionPeersInfo(r, info), Equals, "")
 	c.Assert(r.GetStorePeer(n), IsNil)
 	r.Region.StartKey = []byte{0}
-	c.Assert(diffRegionKeyInfo(r, info), Matches, "StartKey Changed.*")
+	c.Assert(DiffRegionKeyInfo(r, info), Matches, "StartKey Changed.*")
 	r.Region.EndKey = []byte{1}
-	c.Assert(diffRegionKeyInfo(r, info), Matches, ".*EndKey Changed.*")
+	c.Assert(DiffRegionKeyInfo(r, info), Matches, ".*EndKey Changed.*")
 
 	stores := r.GetStoreIds()
 	c.Assert(stores, HasLen, int(n))

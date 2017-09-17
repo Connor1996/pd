@@ -53,31 +53,31 @@ func newTestStores(n uint64) []*core.StoreInfo {
 
 func (s *testStoresInfoSuite) TestStores(c *C) {
 	n := uint64(10)
-	cache := newStoresInfo()
+	cache := core.NewStoresInfo()
 	stores := newTestStores(n)
 
 	for i := uint64(0); i < n; i++ {
-		c.Assert(cache.getStore(i), IsNil)
-		c.Assert(cache.blockStore(i), NotNil)
-		cache.setStore(stores[i])
-		c.Assert(cache.getStore(i), DeepEquals, stores[i])
-		c.Assert(cache.getStoreCount(), Equals, int(i+1))
-		c.Assert(cache.blockStore(i), IsNil)
-		c.Assert(cache.getStore(i).IsBlocked(), IsTrue)
-		c.Assert(cache.blockStore(i), NotNil)
-		cache.unblockStore(i)
-		c.Assert(cache.getStore(i).IsBlocked(), IsFalse)
+		c.Assert(cache.GetStore(i), IsNil)
+		c.Assert(cache.BlockStore(i), NotNil)
+		cache.SetStore(stores[i])
+		c.Assert(cache.GetStore(i), DeepEquals, stores[i])
+		c.Assert(cache.GetStoreCount(), Equals, int(i+1))
+		c.Assert(cache.BlockStore(i), IsNil)
+		c.Assert(cache.GetStore(i).IsBlocked(), IsTrue)
+		c.Assert(cache.BlockStore(i), NotNil)
+		cache.UnblockStore(i)
+		c.Assert(cache.GetStore(i).IsBlocked(), IsFalse)
 	}
-	c.Assert(cache.getStoreCount(), Equals, int(n))
+	c.Assert(cache.GetStoreCount(), Equals, int(n))
 
-	for _, store := range cache.getStores() {
+	for _, store := range cache.GetStores() {
 		c.Assert(store, DeepEquals, stores[store.GetId()])
 	}
-	for _, store := range cache.getMetaStores() {
+	for _, store := range cache.GetMetaStores() {
 		c.Assert(store, DeepEquals, stores[store.GetId()].Store)
 	}
 
-	c.Assert(cache.getStoreCount(), Equals, int(n))
+	c.Assert(cache.GetStoreCount(), Equals, int(n))
 }
 
 var _ = Suite(&testRegionsInfoSuite{})
@@ -444,7 +444,7 @@ func (s *testClusterInfoSuite) testRegionHeartbeat(c *C, cache *clusterInfo) {
 		}
 	}
 
-	for _, store := range cache.stores.getStores() {
+    for _, store := range cache.stores.GetStores() {
 		c.Assert(store.LeaderCount, Equals, cache.regions.getStoreLeaderCount(store.GetId()))
 		c.Assert(store.RegionCount, Equals, cache.regions.getStoreRegionCount(store.GetId()))
 	}
