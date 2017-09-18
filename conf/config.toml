@@ -50,12 +50,15 @@ max-store-down-time = "1h"
 leader-schedule-limit = 64
 region-schedule-limit = 16
 replica-schedule-limit = 24
-	[schedulers]
-		[schedulers.balanceLeader]
-		
-		[schedulers.balanceRegion]
-		
-		[schedulers.hotRegion]
+
+# customized schedulers, the format is as below
+# if empty, it will use balanceLeader, balanceRegion, hotRegion as default
+[schedule.schedulers]
+# [schedule.schedulers.balanceLeader]
+#		
+# [schedule.schedulers.balanceRegion]
+#		
+# [schedule.schedulers.hotRegion]
 		
 	
 [replication]
