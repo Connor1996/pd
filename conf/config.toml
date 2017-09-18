@@ -50,7 +50,14 @@ max-store-down-time = "1h"
 leader-schedule-limit = 64
 region-schedule-limit = 16
 replica-schedule-limit = 24
-
+	[schedulers]
+		[schedulers.balanceLeader]
+		
+		[schedulers.balanceRegion]
+		
+		[schedulers.hotRegion]
+		
+	
 [replication]
 # The number of replicas for each region.
 max-replicas = 3

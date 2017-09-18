@@ -73,6 +73,10 @@ func (h *balanceHotRegionScheduler) GetName() string {
 	return "balance-hot-region-scheduler"
 }
 
+func (h *balanceHotRegionScheduler) GetInterval() time.Duration {
+	return time.Millisecond * 10
+}
+
 func (h *balanceHotRegionScheduler) GetResourceKind() core.ResourceKind {
 	return core.PriorityKind
 }

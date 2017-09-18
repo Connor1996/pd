@@ -61,6 +61,10 @@ func (s *balanceRegionScheduler) GetName() string {
 	return "balance-region-scheduler"
 }
 
+func (s *balanceRegionScheduler) GetInterval() time.Duration {
+	return time.Millisecond * 10
+}
+
 func (s *balanceRegionScheduler) GetResourceKind() core.ResourceKind {
 	return core.RegionKind
 }

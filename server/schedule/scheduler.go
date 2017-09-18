@@ -15,6 +15,7 @@ package schedule
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/juju/errors"
 	"github.com/pingcap/kvproto/pkg/metapb"
@@ -47,6 +48,7 @@ type Cluster interface {
 // Scheduler is an interface to schedule resources.
 type Scheduler interface {
 	GetName() string
+	GetInterval() time.Duration
 	GetResourceKind() core.ResourceKind
 	GetResourceLimit() uint64
 	Prepare(cluster Cluster) error
