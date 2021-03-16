@@ -293,7 +293,7 @@ func (s *Server) startEtcd(ctx context.Context) error {
 		return errs.ErrCancelStartEtcd.FastGenByArgs()
 	}
 
-	endpoints := []string{s.etcdCfg.ACUrls[0].String()}
+	endpoints := []string{s.etcdCfg.LCUrls[0].String()}
 	log.Info("create etcd v3 client", zap.Strings("endpoints", endpoints), zap.Reflect("cert", s.cfg.Security))
 
 	client, err := clientv3.New(clientv3.Config{
@@ -357,6 +357,7 @@ func (s *Server) startServer(ctx context.Context) error {
 	s.member.SetMemberDeployPath(s.member.ID())
 	s.member.SetMemberBinaryVersion(s.member.ID(), versioninfo.PDReleaseVersion)
 	s.member.SetMemberGitHash(s.member.ID(), versioninfo.PDGitHash)
+	s.member.SetMemberInnerClientUrls(s.member.ID(), s.cfg.ClientUrls)
 	s.idAllocator = id.NewAllocator(s.client, s.rootPath, s.member.MemberValue())
 	s.tsoAllocatorManager = tso.NewAllocatorManager(
 		s.member, s.rootPath, s.cfg.TSOSaveInterval.Duration, s.cfg.TSOUpdatePhysicalInterval.Duration,
@@ -1161,7 +1162,7 @@ func (s *Server) leaderLoop() {
 			go s.tsoAllocatorManager.ClusterDCLocationChecker()
 			syncer := s.cluster.GetRegionSyncer()
 			if s.persistOptions.IsUseRegionStorage() {
-				syncer.StartSyncWithLeader(leader.GetClientUrls()[0])
+				syncer.StartSyncWithLeader(leader.GetInnerClientUrls()[0])
 			}
 			log.Info("start to watch pd leader", zap.Stringer("pd-leader", leader))
 			// WatchLeader will keep looping and never return unless the PD leader has changed.
@@ -1315,7 +1316,7 @@ func (s *Server) ReplicateFileToAllMembers(ctx context.Context, name string, dat
 		return err
 	}
 	for _, member := range resp.Members {
-		clientUrls := member.GetClientUrls()
+		clientUrls := member.GetInnerClientUrls()
 		if len(clientUrls) == 0 {
 			log.Warn("failed to replicate file", zap.String("name", name), zap.String("member", member.GetName()), errs.ZapError(err))
 			return errs.ErrClientURLEmpty.FastGenByArgs()

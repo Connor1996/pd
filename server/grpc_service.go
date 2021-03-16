@@ -19,6 +19,7 @@ import (
 	"io"
 	"math"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -60,6 +61,14 @@ func (s *Server) GetMembers(context.Context, *pdpb.GetMembersRequest) (*pdpb.Get
 	members, err := cluster.GetMembers(s.GetClient())
 	if err != nil {
 		return nil, status.Errorf(codes.Unknown, err.Error())
+	}
+
+	for _, m := range members {
+		urls, err := s.member.GetMemberInnerClientUrls(m.MemberId)
+		if err != nil {
+			return nil, status.Errorf(codes.Unknown, err.Error())
+		}
+		m.InnerClientUrls = strings.Split(urls, ",")
 	}
 
 	var etcdLeader, pdLeader *pdpb.Member
@@ -1433,7 +1442,7 @@ func (s *Server) isLocalRequest(targetAddr string) bool {
 	if targetAddr == "" {
 		return true
 	}
-	memberAddrs := s.GetMember().Member().GetClientUrls()
+	memberAddrs := s.GetMember().Member().GetInnerClientUrls()
 	for _, addr := range memberAddrs {
 		if addr == targetAddr {
 			return true

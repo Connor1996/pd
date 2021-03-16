@@ -114,7 +114,7 @@ func (h *redirector) ServeHTTP(w http.ResponseWriter, r *http.Request, next http
 		return
 	}
 
-	urls, err := config.ParseUrls(strings.Join(leader.GetClientUrls(), ","))
+	urls, err := config.ParseUrls(strings.Join(leader.GetInnerClientUrls(), ","))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

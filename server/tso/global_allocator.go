@@ -193,10 +193,10 @@ func (gta *GlobalTSOAllocator) SyncMaxTS(ctx context.Context, dcLocationMap map[
 		leaderURLs := make([]string, 0)
 		for _, allocator := range allocatorLeaders {
 			// Check if its client URLs are empty
-			if len(allocator.GetClientUrls()) < 1 {
+			if len(allocator.GetInnerClientUrls()) < 1 {
 				continue
 			}
-			leaderURL := allocator.GetClientUrls()[0]
+			leaderURL := allocator.GetInnerClientUrls()[0]
 			if slice.NoneOf(leaderURLs, func(i int) bool { return leaderURLs[i] == leaderURL }) {
 				leaderURLs = append(leaderURLs, leaderURL)
 			}

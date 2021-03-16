@@ -1791,7 +1791,7 @@ func IsClientURL(addr string, etcdClient *clientv3.Client) bool {
 		return false
 	}
 	for _, member := range members {
-		for _, u := range member.GetClientUrls() {
+		for _, u := range member.GetInnerClientUrls() {
 			if u == addr {
 				return true
 			}

@@ -114,7 +114,7 @@ func (m *Manager) updateInfo() {
 
 	allHasClientUrls := true
 	for _, member := range m.members {
-		if len(member.GetClientUrls()) == 0 {
+		if len(member.GetInnerClientUrls()) == 0 {
 			allHasClientUrls = false
 		}
 	}
@@ -146,7 +146,7 @@ func (m *Manager) checkAddress() {
 
 	m.redirector.SetAddress(dashboardAddress)
 
-	clientUrls := m.srv.GetMemberInfo().GetClientUrls()
+	clientUrls := m.srv.GetMemberInfo().GetInnerClientUrls()
 	if len(clientUrls) > 0 && clientUrls[0] == dashboardAddress {
 		m.startService()
 	} else {
@@ -160,7 +160,7 @@ func (m *Manager) needResetAddress(addr string) bool {
 	}
 
 	for _, member := range m.members {
-		if member.GetClientUrls()[0] == addr {
+		if member.GetInnerClientUrls()[0] == addr {
 			return false
 		}
 	}
@@ -174,14 +174,14 @@ func (m *Manager) setNewAddress() {
 	var addr string
 	switch len(members) {
 	case 1:
-		addr = members[0].GetClientUrls()[0]
+		addr = members[0].GetInnerClientUrls()[0]
 	default:
-		addr = members[0].GetClientUrls()[0]
+		addr = members[0].GetInnerClientUrls()[0]
 		leaderID := m.srv.GetMemberInfo().MemberId
 		sort.Slice(members, func(i, j int) bool { return members[i].GetMemberId() < members[j].GetMemberId() })
 		for _, member := range members {
 			if member.MemberId != leaderID {
-				addr = member.GetClientUrls()[0]
+				addr = member.GetInnerClientUrls()[0]
 				break
 			}
 		}

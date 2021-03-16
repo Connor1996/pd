@@ -248,10 +248,11 @@ func (m *Member) isSameLeader(leader *pdpb.Member) bool {
 // MemberInfo initializes the member info.
 func (m *Member) MemberInfo(cfg *config.Config, name string, rootPath string) {
 	leader := &pdpb.Member{
-		Name:       name,
-		MemberId:   m.ID(),
-		ClientUrls: strings.Split(cfg.AdvertiseClientUrls, ","),
-		PeerUrls:   strings.Split(cfg.AdvertisePeerUrls, ","),
+		Name:            name,
+		MemberId:        m.ID(),
+		ClientUrls:      strings.Split(cfg.AdvertiseClientUrls, ","),
+		PeerUrls:        strings.Split(cfg.AdvertisePeerUrls, ","),
+		InnerClientUrls: strings.Split(cfg.ClientUrls, ","),
 	}
 
 	data, err := leader.Marshal()
@@ -397,6 +398,10 @@ func (m *Member) getMemberGitHashPath(id uint64) string {
 	return path.Join(m.rootPath, fmt.Sprintf("member/%d/git_hash", id))
 }
 
+func (m *Member) getMemberInnerClientUrlsPath(id uint64) string {
+	return path.Join(m.rootPath, fmt.Sprintf("member/%d/inner_client_urls", id))
+}
+
 func (m *Member) getMemberBinaryVersionPath(id uint64) string {
 	return path.Join(m.rootPath, fmt.Sprintf("member/%d/binary_version", id))
 }
@@ -446,6 +451,31 @@ func (m *Member) SetMemberGitHash(id uint64, gitHash string) error {
 	key := m.getMemberGitHashPath(id)
 	txn := kv.NewSlowLogTxn(m.client)
 	res, err := txn.Then(clientv3.OpPut(key, gitHash)).Commit()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	if !res.Succeeded {
+		return errors.New("failed to save git hash")
+	}
+	return nil
+}
+
+func (m *Member) GetMemberInnerClientUrls(id uint64) (string, error) {
+	key := m.getMemberInnerClientUrlsPath(id)
+	res, err := etcdutil.EtcdKVGet(m.client, key)
+	if err != nil {
+		return "", err
+	}
+	if len(res.Kvs) == 0 {
+		return "", errs.ErrEtcdKVGetResponse.FastGenByArgs("no value")
+	}
+	return string(res.Kvs[0].Value), nil
+}
+
+func (m *Member) SetMemberInnerClientUrls(id uint64, innerClientUrls string) error {
+	key := m.getMemberInnerClientUrlsPath(id)
+	txn := kv.NewSlowLogTxn(m.client)
+	res, err := txn.Then(clientv3.OpPut(key, innerClientUrls)).Commit()
 	if err != nil {
 		return errors.WithStack(err)
 	}

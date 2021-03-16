@@ -1043,7 +1043,7 @@ func (am *AllocatorManager) getDCLocationInfoFromLeader(ctx context.Context, dcL
 		return ok, dcLocationInfo, nil
 	}
 
-	leaderAddrs := am.member.GetLeader().GetClientUrls()
+	leaderAddrs := am.member.GetLeader().GetInnerClientUrls()
 	if leaderAddrs == nil || len(leaderAddrs) < 1 {
 		return false, &pdpb.GetDCLocationInfoResponse{}, fmt.Errorf("failed to get leader client url")
 	}

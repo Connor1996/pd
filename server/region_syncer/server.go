@@ -160,7 +160,7 @@ func (s *RegionSyncer) Sync(stream pdpb.PD_SyncRegionsServer) error {
 		}
 		log.Info("establish sync region stream",
 			zap.String("requested-server", request.GetMember().GetName()),
-			zap.String("url", request.GetMember().GetClientUrls()[0]))
+			zap.String("url", request.GetMember().GetInnerClientUrls()[0]))
 
 		err = s.syncHistoryRegion(request, stream)
 		if err != nil {
