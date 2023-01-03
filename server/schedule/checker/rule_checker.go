@@ -278,7 +278,7 @@ func (c *RuleChecker) replaceUnexpectRulePeer(region *core.RegionInfo, rf *place
 	if newLeader != nil {
 		c.record.incOfflineLeaderCount(newLeader.GetStoreId())
 	}
-	op.SetPriorityLevel(core.High)
+	op.SetPriorityLevel(core.Urgent)
 	return op, nil
 }
 
