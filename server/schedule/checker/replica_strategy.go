@@ -43,7 +43,7 @@ type ReplicaStrategy struct {
 // the peer list with the peer removed as `coLocationStores`.
 // Meanwhile, we need to provide more constraints to ensure that the isolation
 // level cannot be reduced after replacement.
-func (s *ReplicaStrategy) SelectStoreToAdd(coLocationStores []*core.StoreInfo, extraFilters ...filter.Filter) (uint64, bool) {
+func (s *ReplicaStrategy) SelectStoreToAdd(coLocationStores []*core.StoreInfo, isWitness bool, extraFilters ...filter.Filter) (uint64, bool) {
 	// The selection process uses a two-stage fashion. The first stage
 	// ignores the temporary state of the stores and selects the stores
 	// with the highest score according to the location label. The second
@@ -69,7 +69,10 @@ func (s *ReplicaStrategy) SelectStoreToAdd(coLocationStores []*core.StoreInfo, e
 	}
 
 	isolationComparer := filter.IsolationComparer(s.locationLabels, coLocationStores)
-	strictStateFilter := &filter.StoreStateFilter{ActionScope: s.checkerName, MoveRegion: true}
+	var strictStateFilter filter.Filter
+	if !isWitness {
+		strictStateFilter = &filter.StoreStateFilter{ActionScope: s.checkerName, MoveRegion: true}
+	}
 	targetCandidate := filter.NewCandidates(s.cluster.GetStores()).
 		FilterTarget(s.cluster.GetOpts(), nil, nil, filters...).
 		KeepTheTopStores(isolationComparer, false) // greater isolation score is better
@@ -86,10 +89,10 @@ func (s *ReplicaStrategy) SelectStoreToAdd(coLocationStores []*core.StoreInfo, e
 
 // SelectStoreToFix returns a store to replace down/offline old peer. The location
 // placement after scheduling is allowed to be worse than original.
-func (s *ReplicaStrategy) SelectStoreToFix(coLocationStores []*core.StoreInfo, old uint64) (uint64, bool) {
+func (s *ReplicaStrategy) SelectStoreToFix(coLocationStores []*core.StoreInfo, old uint64, isWitness bool) (uint64, bool) {
 	// trick to avoid creating a slice with `old` removed.
 	s.swapStoreToFirst(coLocationStores, old)
-	return s.SelectStoreToAdd(coLocationStores[1:])
+	return s.SelectStoreToAdd(coLocationStores[1:], isWitness)
 }
 
 // SelectStoreToImprove returns a store to replace oldStore. The location
@@ -107,7 +110,7 @@ func (s *ReplicaStrategy) SelectStoreToImprove(coLocationStores []*core.StoreInf
 	if len(s.locationLabels) > 0 && s.isolationLevel != "" {
 		filters = append(filters, filter.NewIsolationFilter(s.checkerName, s.isolationLevel, s.locationLabels, coLocationStores[1:]))
 	}
-	return s.SelectStoreToAdd(coLocationStores[1:], filters...)
+	return s.SelectStoreToAdd(coLocationStores[1:], false, filters...)
 }
 
 func (s *ReplicaStrategy) swapStoreToFirst(stores []*core.StoreInfo, id uint64) {

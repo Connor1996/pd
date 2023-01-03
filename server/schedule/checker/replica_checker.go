@@ -157,7 +157,7 @@ func (r *ReplicaChecker) checkMakeUpReplica(region *core.RegionInfo) *operator.O
 	}
 	log.Debug("region has fewer than max replicas", zap.Uint64("region-id", region.GetID()), zap.Int("peers", len(region.GetPeers())))
 	regionStores := r.cluster.GetRegionStores(region)
-	target, filterByTempState := r.strategy(region).SelectStoreToAdd(regionStores)
+	target, filterByTempState := r.strategy(region).SelectStoreToAdd(regionStores, false)
 	if target == 0 {
 		log.Debug("no store to add replica", zap.Uint64("region-id", region.GetID()))
 		checkerCounter.WithLabelValues("replica_checker", "no-target-store").Inc()
@@ -242,7 +242,7 @@ func (r *ReplicaChecker) fixPeer(region *core.RegionInfo, storeID uint64, status
 	}
 
 	regionStores := r.cluster.GetRegionStores(region)
-	target, filterByTempState := r.strategy(region).SelectStoreToFix(regionStores, storeID)
+	target, filterByTempState := r.strategy(region).SelectStoreToFix(regionStores, storeID, false)
 	if target == 0 {
 		reason := fmt.Sprintf("no-store-%s", status)
 		checkerCounter.WithLabelValues("replica_checker", reason).Inc()

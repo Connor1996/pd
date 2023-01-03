@@ -201,7 +201,7 @@ func (c *RuleChecker) fixRulePeer(region *core.RegionInfo, fit *placement.Region
 func (c *RuleChecker) addRulePeer(region *core.RegionInfo, rf *placement.RuleFit) (*operator.Operator, error) {
 	checkerCounter.WithLabelValues("rule_checker", "add-rule-peer").Inc()
 	ruleStores := c.getRuleFitStores(rf)
-	store, filterByTempState := c.strategy(region, rf.Rule).SelectStoreToAdd(ruleStores)
+	store, filterByTempState := c.strategy(region, rf.Rule).SelectStoreToAdd(ruleStores, false)
 	if store == 0 {
 		checkerCounter.WithLabelValues("rule_checker", "no-store-add").Inc()
 		c.handleFilterState(region, filterByTempState)
@@ -220,17 +220,10 @@ func (c *RuleChecker) addRulePeer(region *core.RegionInfo, rf *placement.RuleFit
 	return op, nil
 }
 
-// The peer's store may in Offline or Down, need to be replace.
+// The peer's store may in Offline or Down, need to be replaced.
 func (c *RuleChecker) replaceUnexpectRulePeer(region *core.RegionInfo, rf *placement.RuleFit, fit *placement.RegionFit, peer *metapb.Peer, status string) (*operator.Operator, error) {
-	ruleStores := c.getRuleFitStores(rf)
-	store, filterByTempState := c.strategy(region, rf.Rule).SelectStoreToFix(ruleStores, peer.GetStoreId())
-	if store == 0 {
-		checkerCounter.WithLabelValues("rule_checker", "no-store-replace").Inc()
-		c.handleFilterState(region, filterByTempState)
-		return nil, errNoStoreToReplace
-	}
 	var isWitness bool
-	if c.isWitnessEnabled() && !core.IsStoreContainLabel(c.cluster.GetStore(store).GetMeta(), core.EngineKey, core.EngineTiFlash) {
+	if c.isWitnessEnabled() {
 		// No matter whether witness placement rule is enabled or disabled, when peer's downtime
 		// exceeds the threshold(30min), add a witness and remove the down peer. Then witness is
 		// promoted to non-witness gradually to improve availability.
@@ -242,6 +235,15 @@ func (c *RuleChecker) replaceUnexpectRulePeer(region *core.RegionInfo, rf *place
 	} else {
 		isWitness = false
 	}
+
+	ruleStores := c.getRuleFitStores(rf)
+	store, filterByTempState := c.strategy(region, rf.Rule).SelectStoreToFix(ruleStores, peer.GetStoreId(), isWitness)
+	if store == 0 {
+		checkerCounter.WithLabelValues("rule_checker", "no-store-replace").Inc()
+		c.handleFilterState(region, filterByTempState)
+		return nil, errNoStoreToReplace
+	}
+	
 	newPeer := &metapb.Peer{StoreId: store, Role: rf.Rule.Role.MetaPeerRole(), IsWitness: isWitness}
 	//  pick the smallest leader store to avoid the Offline store be snapshot generator bottleneck.
 	var newLeader *metapb.Peer
