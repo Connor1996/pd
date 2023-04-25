@@ -99,10 +99,8 @@ func (kc *KVCalculator) calculateWriteCost(consumption *rmpb.Consumption, req Re
 
 // AfterKVRequest ...
 func (kc *KVCalculator) AfterKVRequest(consumption *rmpb.Consumption, req RequestInfo, res ResponseInfo) {
-	if !req.IsWrite() {
-		// For now, we can only collect the KV CPU cost for a read request.
-		kc.calculateCPUCost(consumption, res)
-	} else if !res.Succeed() {
+	kc.calculateCPUCost(consumption, res)
+	if req.IsWrite() && !res.Succeed() {
 		// If the write request is not successfully returned, we need to pay back the WRU cost.
 		kc.payBackWriteCost(consumption, req)
 	}
